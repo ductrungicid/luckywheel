@@ -21,6 +21,7 @@ DEFAULT_SETTINGS = {
         {"label": "Phan thuong 5", "weight_percent": None},
         {"label": "Phan thuong 6", "weight_percent": None},
     ],
+    "max_rpm": 300,
     "deceleration_seconds": 5,
     "charge_seconds": 2.2,
 }
@@ -202,6 +203,12 @@ def normalize_settings(raw_settings):
     settings = raw_settings if isinstance(raw_settings, dict) else {}
     segments = normalize_segments(settings.get("segments"), strict=False)
 
+    max_rpm = settings.get("max_rpm", DEFAULT_SETTINGS["max_rpm"])
+    try:
+        max_rpm = max(10, float(max_rpm))
+    except (TypeError, ValueError):
+        max_rpm = DEFAULT_SETTINGS["max_rpm"]
+
     deceleration_seconds = settings.get("deceleration_seconds", DEFAULT_SETTINGS["deceleration_seconds"])
     try:
         deceleration_seconds = max(0.5, float(deceleration_seconds))
@@ -216,6 +223,7 @@ def normalize_settings(raw_settings):
 
     return {
         "segments": segments,
+        "max_rpm": max_rpm,
         "deceleration_seconds": deceleration_seconds,
         "charge_seconds": charge_seconds,
     }
@@ -241,6 +249,11 @@ def validate_settings_payload(payload):
         raise ValueError(str(error)) from error
 
     try:
+        max_rpm = max(10, float(payload.get("max_rpm")))
+    except (TypeError, ValueError):
+        raise ValueError("Invalid max rpm") from None
+
+    try:
         deceleration_seconds = max(0.5, float(payload.get("deceleration_seconds")))
     except (TypeError, ValueError):
         raise ValueError("Invalid deceleration time") from None
@@ -252,6 +265,7 @@ def validate_settings_payload(payload):
 
     return {
         "segments": segments,
+        "max_rpm": max_rpm,
         "deceleration_seconds": deceleration_seconds,
         "charge_seconds": charge_seconds,
     }

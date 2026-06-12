@@ -1,5 +1,6 @@
 const wheelCanvas = document.getElementById("wheelCanvas");
-const spinButton = document.getElementById("spinButton");
+const wheelTrigger = document.getElementById("wheelTrigger");
+const wheelTriggerText = document.getElementById("wheelTriggerText");
 const selectedValue = document.getElementById("selectedValue");
 const statusText = document.getElementById("statusText");
 const postResultActions = document.getElementById("postResultActions");
@@ -10,8 +11,6 @@ const powerValue = document.getElementById("powerValue");
 
 const ctx = wheelCanvas.getContext("2d");
 const palette = ["#f6c445", "#d62839", "#1d9bf0", "#2a9d55", "#7b2cbf", "#f77f00"];
-const maxRpm = 300;
-const maxAngularVelocity = (maxRpm / 60) * Math.PI * 2;
 const topOffset = -Math.PI / 2;
 
 let settings = null;
@@ -31,6 +30,14 @@ let chargeAnimationId = null;
 let activePointerId = null;
 let spinStartTime = 0;
 let spinInitialVelocity = 0;
+
+function getMaxRpm() {
+  return Number(settings?.max_rpm) || 300;
+}
+
+function getMaxAngularVelocity() {
+  return (getMaxRpm() / 60) * Math.PI * 2;
+}
 
 function getRandomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
@@ -130,8 +137,9 @@ function fetchSettings() {
 
 function setChargeLevel(level) {
   chargeLevel = Math.max(0, Math.min(1, level));
-  const rpm = Math.round(chargeLevel * maxRpm);
+  const rpm = Math.round(chargeLevel * getMaxRpm());
   powerValue.textContent = String(rpm);
+
   if (window.innerWidth <= 920) {
     powerFill.style.width = `${chargeLevel * 100}%`;
     powerFill.style.height = "100%";
@@ -156,11 +164,11 @@ function getOscillatingChargeLevel(elapsed, chargeDuration) {
 }
 
 function updateReadyButton() {
-  spinButton.textContent = "Giữ để lấy lực";
-  spinButton.disabled = !settings || settings.segments.length < 2;
+  wheelTriggerText.textContent = "Quay";
+  wheelTrigger.disabled = !settings || settings.segments.length < 2;
 }
 
-function updateIdleState(message = "Giữ nút chơi để nạp lực, thả ra để quay.") {
+function updateIdleState(message = "Giữ nút ở tâm vòng quay để nạp lực, thả ra để quay.") {
   updateReadyButton();
   updateResultPanel("Sẵn sàng quay", message);
 }
@@ -226,19 +234,6 @@ function drawWheel(highlightIndex = null) {
     ctx.restore();
   });
 
-  ctx.beginPath();
-  ctx.arc(0, 0, 56, 0, Math.PI * 2);
-  ctx.fillStyle = "#fff8eb";
-  ctx.fill();
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = "#3b1d0f";
-  ctx.stroke();
-
-  ctx.fillStyle = "#3b1d0f";
-  ctx.font = '700 20px "Segoe UI", sans-serif';
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("QUAY", 0, 2);
   ctx.restore();
 }
 
@@ -285,7 +280,7 @@ function animate(timestamp) {
   const deceleration = spinInitialVelocity / durationSeconds;
   currentVelocity = Math.max(spinInitialVelocity - (deceleration * elapsedSeconds), 0);
   rotation += currentVelocity * delta;
-  setChargeLevel(currentVelocity / maxAngularVelocity);
+  setChargeLevel(currentVelocity / getMaxAngularVelocity());
   drawWheel();
 
   if (currentVelocity > 0) {
@@ -314,14 +309,15 @@ function startSpin() {
   chosenIndex = null;
   postResultActions.classList.add("hidden");
   spinning = true;
+  const maxAngularVelocity = getMaxAngularVelocity();
   currentVelocity = Math.max(maxAngularVelocity * 0.08, chargeLevel * maxAngularVelocity);
   spinInitialVelocity = currentVelocity;
   spinStartTime = performance.now();
   const normalizedForce = currentVelocity / maxAngularVelocity;
   stopDuration = Math.max(300, settings.deceleration_seconds * normalizedForce * 1000);
-  spinButton.textContent = "Đang quay";
-  spinButton.disabled = true;
-  updateResultPanel("Đang quay...", `Tốc độ ${Math.round(normalizedForce * maxRpm)} vòng/phút. Thời gian quay ${Math.max(stopDuration / 1000, 0.3).toFixed(1)} giây.`);
+  wheelTriggerText.textContent = "Đang";
+  wheelTrigger.disabled = true;
+  updateResultPanel("Đang quay...", `Tốc độ ${Math.round(normalizedForce * getMaxRpm())} vòng/phút. Thời gian quay ${Math.max(stopDuration / 1000, 0.3).toFixed(1)} giây.`);
   lastFrameTime = 0;
   activeAnimationId = requestAnimationFrame(animate);
 }
@@ -346,7 +342,7 @@ function continueAfterResult() {
   chosenIndex = null;
   postResultActions.classList.add("hidden");
   drawWheel();
-  updateIdleState("Giữ nút chơi để nạp lực cho lượt tiếp theo.");
+  updateIdleState("Giữ nút ở tâm vòng quay để nạp lực cho lượt tiếp theo.");
 }
 
 function persistSettings(message) {
@@ -384,7 +380,7 @@ function tickCharge(timestamp) {
   const elapsed = timestamp - chargeStartTime;
   const chargeDuration = (settings?.charge_seconds ?? 2.2) * 1000;
   setChargeLevel(getOscillatingChargeLevel(elapsed, chargeDuration));
-  updateResultPanel("Đang nạp lực...", `Thanh lực đang lên xuống liên tục. Thả nút để chốt ${Math.round(chargeLevel * maxRpm)} vòng/phút.`);
+  updateResultPanel("Đang nạp lực...", `Thanh lực đang lên xuống liên tục. Thả nút để chốt ${Math.round(chargeLevel * getMaxRpm())} vòng/phút.`);
   chargeAnimationId = requestAnimationFrame(tickCharge);
 }
 
@@ -399,9 +395,9 @@ function startCharging(event) {
   chargeStartTime = performance.now();
   setChargeLevel(0);
   postResultActions.classList.add("hidden");
-  updateResultPanel("Đang nạp lực...", "Giữ nút càng lâu, lực quay càng cao.");
-  spinButton.textContent = "Thả để quay";
-  spinButton.setPointerCapture(event.pointerId);
+  updateResultPanel("Đang nạp lực...", "Giữ nút ở tâm càng lâu, lực quay càng cao.");
+  wheelTriggerText.textContent = "Thả";
+  wheelTrigger.setPointerCapture(event.pointerId);
   chargeAnimationId = requestAnimationFrame(tickCharge);
 }
 
@@ -420,8 +416,8 @@ function releaseCharge(event) {
     chargeAnimationId = null;
   }
 
-  if (activePointerId !== null && spinButton.hasPointerCapture(activePointerId)) {
-    spinButton.releasePointerCapture(activePointerId);
+  if (activePointerId !== null && wheelTrigger.hasPointerCapture(activePointerId)) {
+    wheelTrigger.releasePointerCapture(activePointerId);
   }
   activePointerId = null;
 
@@ -432,14 +428,14 @@ function releaseCharge(event) {
   startSpin();
 }
 
-spinButton.addEventListener("pointerdown", (event) => {
+wheelTrigger.addEventListener("pointerdown", (event) => {
   startCharging(event);
 });
 
-spinButton.addEventListener("pointerup", releaseCharge);
-spinButton.addEventListener("pointercancel", releaseCharge);
-spinButton.addEventListener("lostpointercapture", releaseCharge);
-spinButton.addEventListener("pointerleave", (event) => {
+wheelTrigger.addEventListener("pointerup", releaseCharge);
+wheelTrigger.addEventListener("pointercancel", releaseCharge);
+wheelTrigger.addEventListener("lostpointercapture", releaseCharge);
+wheelTrigger.addEventListener("pointerleave", (event) => {
   if (charging && event.buttons === 0) {
     releaseCharge(event);
   }

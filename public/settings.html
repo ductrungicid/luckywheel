@@ -27,12 +27,17 @@
         </label>
 
         <label class="field">
-          <span>Thời gian giảm tốc tối đa ở mức 300 vòng/phút (giây)</span>
+          <span>Số vòng quay tối đa (vòng/phút)</span>
+          <input id="maxRpm" type="number" min="10" step="10">
+        </label>
+
+        <label class="field">
+          <span>Thời gian giảm tốc tối đa ở mức tốc độ tối đa (giây)</span>
           <input id="decelerationSeconds" type="number" min="0.5" step="0.5">
         </label>
 
         <label class="field">
-          <span>Thời gian nạp lực từ 0 đến 300 vòng/phút (giây)</span>
+          <span>Thời gian nạp lực từ 0 đến tốc độ tối đa (giây)</span>
           <input id="chargeSeconds" type="number" min="0.2" step="0.1">
         </label>
 

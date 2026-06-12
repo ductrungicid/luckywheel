@@ -1,4 +1,5 @@
 const segmentCountInput = document.getElementById("segmentCount");
+const maxRpmInput = document.getElementById("maxRpm");
 const decelerationSecondsInput = document.getElementById("decelerationSeconds");
 const chargeSecondsInput = document.getElementById("chargeSeconds");
 const segmentsTableBody = document.getElementById("segmentsTableBody");
@@ -132,6 +133,7 @@ function updatePercentSummary() {
 
 function fillForm() {
   segmentCountInput.value = settings.segments.length;
+  maxRpmInput.value = settings.max_rpm;
   decelerationSecondsInput.value = settings.deceleration_seconds;
   chargeSecondsInput.value = settings.charge_seconds;
   renderSegmentsTable(settings.segments);
@@ -165,6 +167,7 @@ function syncSegmentCount() {
 
 function readForm() {
   const count = Number.parseInt(segmentCountInput.value, 10);
+  const maxRpm = Number.parseFloat(maxRpmInput.value);
   const deceleration = Number.parseFloat(decelerationSecondsInput.value);
   const chargeSeconds = Number.parseFloat(chargeSecondsInput.value);
   const segments = getSegmentsFromTable();
@@ -172,6 +175,9 @@ function readForm() {
 
   if (!Number.isInteger(count) || count < 2) {
     throw new Error("Số ô phải lớn hơn 1.");
+  }
+  if (!Number.isFinite(maxRpm) || maxRpm < 10) {
+    throw new Error("Số vòng quay tối đa phải từ 10 vòng/phút trở lên.");
   }
   if (!Number.isFinite(deceleration) || deceleration < 0.5) {
     throw new Error("Thời gian giảm tốc tối đa phải từ 0.5 giây trở lên.");
@@ -194,6 +200,7 @@ function readForm() {
 
   return {
     segments,
+    max_rpm: maxRpm,
     deceleration_seconds: deceleration,
     charge_seconds: chargeSeconds,
   };
