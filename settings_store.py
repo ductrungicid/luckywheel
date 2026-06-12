@@ -10,6 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 SETTINGS_FILE = DATA_DIR / "settings.json"
 SETTINGS_KEY = "lucky-wheel-settings"
+SUPABASE_TABLE = "app_settings"
 
 DEFAULT_SETTINGS = {
     "segments": [
@@ -34,63 +35,106 @@ def ensure_local_settings():
         )
 
 
-def redis_credentials():
-    url = os.getenv("KV_REST_API_URL") or os.getenv("UPSTASH_REDIS_REST_URL")
-    token = os.getenv("KV_REST_API_TOKEN") or os.getenv("UPSTASH_REDIS_REST_TOKEN")
-    if url and token:
-        return url.rstrip("/"), token
+def supabase_credentials():
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    if url and key:
+        return url.rstrip("/"), key
     return None, None
 
 
 def has_remote_storage():
-    base_url, token = redis_credentials()
-    return bool(base_url and token)
+    url, key = supabase_credentials()
+    return bool(url and key)
 
 
-def redis_get_json(key: str):
-    base_url, token = redis_credentials()
-    if not base_url or not token:
+def supabase_request(method: str, path: str, query: str = "", body=None, extra_headers=None):
+    base_url, service_key = supabase_credentials()
+    if not base_url or not service_key:
         return None
 
-    request = Request(
-        f"{base_url}/get/{quote(key, safe='')}",
-        headers={"Authorization": f"Bearer {token}"},
-        method="GET",
+    url = f"{base_url}{path}"
+    if query:
+        url = f"{url}?{query}"
+
+    headers = {
+        "apikey": service_key,
+        "Authorization": f"Bearer {service_key}",
+    }
+    if extra_headers:
+        headers.update(extra_headers)
+
+    data = None
+    if body is not None:
+        data = json.dumps(body, ensure_ascii=True).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    request = Request(url, data=data, headers=headers, method=method)
+    try:
+        with urlopen(request, timeout=15) as response:
+            raw_body = response.read().decode("utf-8")
+            return response.status, raw_body
+    except HTTPError as error:
+        try:
+            return error.code, error.read().decode("utf-8")
+        except Exception:
+            return error.code, ""
+    except (URLError, TimeoutError):
+        return None
+
+
+def supabase_get_json(key: str):
+    response = supabase_request(
+        "GET",
+        f"/rest/v1/{SUPABASE_TABLE}",
+        query=f"select=payload&key=eq.{quote(key, safe='')}",
+        extra_headers={"Accept": "application/json"},
     )
-    try:
-        with urlopen(request, timeout=10) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):
+    if not response:
         return None
 
-    raw_value = payload.get("result")
-    if not raw_value:
+    status_code, raw_body = response
+    if status_code != 200:
         return None
 
     try:
-        return json.loads(raw_value)
+        payload = json.loads(raw_body)
     except json.JSONDecodeError:
         return None
 
+    if not payload:
+        return None
 
-def redis_set_json(key: str, value):
-    base_url, token = redis_credentials()
-    if not base_url or not token:
-        return False
+    return payload[0].get("payload")
 
-    serialized = json.dumps(value, ensure_ascii=True, separators=(",", ":"))
-    request = Request(
-        f"{base_url}/set/{quote(key, safe='')}/{quote(serialized, safe='')}",
-        headers={"Authorization": f"Bearer {token}"},
-        method="POST",
+
+def supabase_set_json(key: str, value):
+    response = supabase_request(
+        "POST",
+        f"/rest/v1/{SUPABASE_TABLE}",
+        query="on_conflict=key",
+        body=[{"key": key, "payload": value}],
+        extra_headers={
+            "Prefer": "resolution=merge-duplicates,return=representation",
+            "Accept": "application/json",
+        },
     )
-    try:
-        with urlopen(request, timeout=10) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):
-        return False
+    if not response:
+        return False, "Không kết nối được tới Supabase."
 
-    return payload.get("result") == "OK"
+    status_code, raw_body = response
+    if status_code not in {200, 201}:
+        message = "Không lưu được cài đặt lên Supabase."
+        try:
+            payload = json.loads(raw_body)
+            details = payload.get("message") or payload.get("hint") or payload.get("details")
+            if details:
+                message = f"{message} {details}"
+        except json.JSONDecodeError:
+            pass
+        return False, message
+
+    return True, None
 
 
 def normalize_segments(raw_segments, strict=False):
@@ -178,7 +222,7 @@ def normalize_settings(raw_settings):
 
 
 def load_settings():
-    remote = redis_get_json(SETTINGS_KEY)
+    remote = supabase_get_json(SETTINGS_KEY)
     if remote is not None:
         return normalize_settings(remote)
 
@@ -216,12 +260,13 @@ def validate_settings_payload(payload):
 def save_settings(settings):
     normalized = normalize_settings(settings)
     if has_remote_storage():
-        if not redis_set_json(SETTINGS_KEY, normalized):
-            raise RuntimeError("Không lưu được cài đặt lên Redis. Hãy kiểm tra Redis integration và các biến môi trường trên Vercel.")
+        ok, error_message = supabase_set_json(SETTINGS_KEY, normalized)
+        if not ok:
+            raise RuntimeError(error_message or "Không lưu được cài đặt lên Supabase.")
         return normalized
 
     if os.getenv("VERCEL"):
-        raise RuntimeError("Chưa cấu hình nơi lưu dùng chung trên Vercel. Hãy gắn Redis integration cho project.")
+        raise RuntimeError("Chưa cấu hình SUPABASE_URL hoặc SUPABASE_SERVICE_ROLE_KEY trên Vercel.")
 
     ensure_local_settings()
     SETTINGS_FILE.write_text(json.dumps(normalized, ensure_ascii=True, indent=2), encoding="utf-8")

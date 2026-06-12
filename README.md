@@ -34,15 +34,21 @@ Sau đó:
 
 ## Lưu cài đặt dùng chung trên web
 
-Trong Vercel Marketplace, gắn một Redis integration vào project.
+Tạo bảng trên Supabase:
 
-App hỗ trợ các biến môi trường:
+```sql
+create table if not exists public.app_settings (
+  key text primary key,
+  payload jsonb not null,
+  updated_at timestamptz not null default now()
+);
+```
 
-- `KV_REST_API_URL`
-- `KV_REST_API_TOKEN`
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
+Thêm env vars trên Vercel:
 
-Nếu có Redis env vars, cấu hình sẽ lưu dùng chung trên web.
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Nếu có Supabase env vars, cấu hình sẽ lưu dùng chung trên web.
 Nếu không có, app local sẽ lưu vào `data/settings.json`.
 "# luckywheel" 

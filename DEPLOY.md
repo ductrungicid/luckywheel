@@ -20,27 +20,24 @@ git push -u origin main
 - Root Directory: để mặc định là thư mục gốc repo
 - Production Branch: `main`
 
-## 3. Bật lưu cài đặt dùng chung
+## 3. Bật lưu cài đặt dùng chung bằng Supabase
 
-App này ưu tiên lưu cấu hình trong Redis REST nếu có các biến môi trường sau:
+Chạy SQL này trong Supabase SQL Editor:
 
-- `KV_REST_API_URL`
-- `KV_REST_API_TOKEN`
+```sql
+create table if not exists public.app_settings (
+  key text primary key,
+  payload jsonb not null,
+  updated_at timestamptz not null default now()
+);
+```
 
-Nếu provider Redis của bạn dùng tên biến Upstash thay vì Vercel, app cũng hỗ trợ:
+Thêm 2 biến môi trường trên Vercel:
 
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-Trên Vercel:
-
-1. Vào project
-2. Mở `Marketplace`
-3. Cài một Redis integration
-4. Kết nối integration đó với project này
-5. Redeploy
-
-Sau khi các biến môi trường tồn tại, `api/settings.py` sẽ đọc/ghi cấu hình dùng chung trên web.
+Sau đó redeploy project. `api/settings.py` sẽ đọc/ghi cấu hình dùng chung trên bảng `public.app_settings`.
 
 ## 4. Link sử dụng
 
@@ -60,4 +57,4 @@ https://your-project.vercel.app/settings
 python app.py
 ```
 
-Nếu không có Redis env vars, app local sẽ lưu vào `data/settings.json`.
+Nếu không có Supabase env vars, app local sẽ lưu vào `data/settings.json`.
