@@ -38,6 +38,6 @@
     }
   ],
   "max_rpm": 500.0,
-  "deceleration_seconds": 5.0,
-  "charge_seconds": 0.5
+  "deceleration_seconds": 10.0,
+  "charge_seconds": 1.0
 }

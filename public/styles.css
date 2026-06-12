@@ -96,10 +96,7 @@ textarea {
 }
 
 .play-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 0.9fr);
-  gap: 24px;
-  align-items: start;
+  display: block;
 }
 
 .wheel-card,
@@ -114,6 +111,12 @@ textarea {
 
 .wheel-card {
   padding: 28px;
+}
+
+.wheel-status {
+  width: min(100%, 720px);
+  margin: 0 auto 18px;
+  text-align: center;
 }
 
 .wheel-stage {
@@ -276,20 +279,15 @@ canvas {
   transform: translateY(-1px);
 }
 
-.result-panel {
-  padding: 28px;
-  min-height: 100%;
-}
-
 .selected-value {
-  margin: 16px 0;
-  min-height: 140px;
+  margin: 0;
+  min-height: 0;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: 18px 20px;
   border-radius: 24px;
   background: linear-gradient(145deg, #fffaf2, #ffe0b2);
-  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-size: clamp(1.3rem, 3vw, 2.4rem);
   text-align: center;
   font-weight: 700;
   line-height: 1.05;
@@ -303,6 +301,11 @@ canvas {
 .status-text {
   margin: 0;
   color: var(--muted);
+  text-align: center;
+}
+
+.wheel-status-note {
+  margin-top: 18px;
 }
 
 .floating-save {

@@ -21,6 +21,10 @@
 
     <main class="play-layout">
       <section class="wheel-card">
+        <div class="wheel-status">
+          <div id="selectedValue" class="selected-value">Sẵn sàng quay</div>
+        </div>
+
         <div class="wheel-stage">
           <div class="wheel-wrap">
             <img class="arrow-icon" src="/resource/triangle-arrow.png" alt="" aria-hidden="true">
@@ -46,13 +50,9 @@
             </div>
           </aside>
         </div>
-      </section>
 
-      <aside class="result-panel">
-        <p class="eyebrow">Kết quả</p>
-        <div id="selectedValue" class="selected-value">Sẵn sàng quay</div>
-        <p id="statusText" class="status-text">Nhấn vào tâm vòng quay để bắt đầu.</p>
-      </aside>
+        <p id="statusText" class="status-text wheel-status-note">Nhấn vào tâm vòng quay để bắt đầu.</p>
+      </section>
     </main>
   </div>
 
