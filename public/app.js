@@ -304,7 +304,7 @@ function startSpin() {
   chosenIndex = null;
   spinning = true;
   const maxAngularVelocity = getMaxAngularVelocity();
-  currentVelocity = Math.max(maxAngularVelocity * 0.08, chargeLevel * maxAngularVelocity);
+  currentVelocity = Math.max(maxAngularVelocity * 0.15, chargeLevel * maxAngularVelocity);
   spinInitialVelocity = currentVelocity;
   spinStartTime = performance.now();
   const normalizedForce = currentVelocity / maxAngularVelocity;
@@ -372,7 +372,7 @@ function releaseCharge(event) {
   activePointerId = null;
 
   if (chargeLevel <= 0) {
-    setChargeLevel(0.08);
+    setChargeLevel(0.15);
   }
 
   startSpin();
