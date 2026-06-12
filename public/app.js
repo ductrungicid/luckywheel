@@ -1,0 +1,431 @@
+const wheelCanvas = document.getElementById("wheelCanvas");
+const spinButton = document.getElementById("spinButton");
+const selectedValue = document.getElementById("selectedValue");
+const statusText = document.getElementById("statusText");
+const postResultActions = document.getElementById("postResultActions");
+const removeButton = document.getElementById("removeButton");
+const continueButton = document.getElementById("continueButton");
+const powerFill = document.getElementById("powerFill");
+const powerValue = document.getElementById("powerValue");
+
+const ctx = wheelCanvas.getContext("2d");
+const palette = ["#f6c445", "#d62839", "#1d9bf0", "#2a9d55", "#7b2cbf", "#f77f00"];
+const maxRpm = 300;
+const maxAngularVelocity = (maxRpm / 60) * Math.PI * 2;
+const topOffset = -Math.PI / 2;
+
+let settings = null;
+let wheelSegments = [];
+let wheelColors = [];
+let rotation = 0;
+let spinning = false;
+let stopDuration = 3000;
+let currentVelocity = 0;
+let activeAnimationId = null;
+let lastFrameTime = 0;
+let chosenIndex = null;
+let charging = false;
+let chargeStartTime = 0;
+let chargeLevel = 0;
+let chargeAnimationId = null;
+let activePointerId = null;
+let spinStartTime = 0;
+let spinInitialVelocity = 0;
+
+function getRandomItem(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function buildColors(count) {
+  if (count <= 0) {
+    return [];
+  }
+
+  const colors = [];
+  for (let index = 0; index < count; index += 1) {
+    const previousColor = colors[index - 1];
+    let availableColors = palette.filter((color) => color !== previousColor);
+
+    if (index === count - 1 && count > 2 && colors[0]) {
+      const withoutFirst = availableColors.filter((color) => color !== colors[0]);
+      if (withoutFirst.length > 0) {
+        availableColors = withoutFirst;
+      }
+    }
+
+    colors.push(getRandomItem(availableColors));
+  }
+
+  return colors;
+}
+
+function normalizeNumber(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function resolveWheelSegments(segments) {
+  const explicitTotal = segments.reduce((sum, segment) => {
+    const weight = normalizeNumber(segment.weight_percent);
+    return weight === null ? sum : sum + weight;
+  }, 0);
+
+  const unsetCount = segments.filter((segment) => normalizeNumber(segment.weight_percent) === null).length;
+  const remaining = Math.max(0, 100 - explicitTotal);
+  const equalShare = unsetCount > 0 ? remaining / unsetCount : 0;
+
+  let cursor = 0;
+  return segments.map((segment) => {
+    const configuredWeight = normalizeNumber(segment.weight_percent);
+    const resolvedPercent = configuredWeight === null ? equalShare : configuredWeight;
+    const angle = (resolvedPercent / 100) * Math.PI * 2;
+    const resolved = {
+      label: segment.label,
+      weight_percent: configuredWeight,
+      resolved_percent: resolvedPercent,
+      startAngle: cursor / 100 * Math.PI * 2,
+      endAngle: (cursor + resolvedPercent) / 100 * Math.PI * 2,
+      angle,
+    };
+    cursor += resolvedPercent;
+    return resolved;
+  });
+}
+
+function refreshWheelData() {
+  wheelSegments = resolveWheelSegments(settings?.segments ?? []);
+  wheelColors = buildColors(wheelSegments.length);
+}
+
+function fetchSettings() {
+  return fetch("/api/settings")
+    .then((response) => response.json())
+    .then((data) => {
+      settings = data;
+      refreshWheelData();
+      drawWheel();
+      setChargeLevel(0);
+      updateIdleState();
+    });
+}
+
+function setChargeLevel(level) {
+  chargeLevel = Math.max(0, Math.min(1, level));
+  const rpm = Math.round(chargeLevel * maxRpm);
+  powerValue.textContent = String(rpm);
+  if (window.innerWidth <= 920) {
+    powerFill.style.width = `${chargeLevel * 100}%`;
+    powerFill.style.height = "100%";
+  } else {
+    powerFill.style.height = `${chargeLevel * 100}%`;
+    powerFill.style.width = "100%";
+  }
+}
+
+function getOscillatingChargeLevel(elapsed, chargeDuration) {
+  if (chargeDuration <= 0) {
+    return 0;
+  }
+
+  const cycleDuration = chargeDuration * 2;
+  const cyclePosition = elapsed % cycleDuration;
+  if (cyclePosition <= chargeDuration) {
+    return cyclePosition / chargeDuration;
+  }
+
+  return 1 - ((cyclePosition - chargeDuration) / chargeDuration);
+}
+
+function updateReadyButton() {
+  spinButton.textContent = "Giữ để lấy lực";
+  spinButton.disabled = !settings || settings.segments.length < 2;
+}
+
+function updateIdleState(message = "Giữ nút chơi để nạp lực, thả ra để quay.") {
+  updateReadyButton();
+  updateResultPanel("Sẵn sàng quay", message);
+}
+
+function updateResultPanel(title, message, shouldPop = false) {
+  selectedValue.textContent = title;
+  statusText.textContent = message;
+  selectedValue.classList.remove("pop");
+  if (shouldPop) {
+    void selectedValue.offsetWidth;
+    selectedValue.classList.add("pop");
+  }
+}
+
+function normalizeAngle(angle) {
+  return ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+}
+
+function getWinningIndex() {
+  const pointerAngle = normalizeAngle(-rotation);
+  return wheelSegments.findIndex((segment) => pointerAngle >= segment.startAngle && pointerAngle < segment.endAngle);
+}
+
+function drawWheel(highlightIndex = null) {
+  if (!settings || wheelSegments.length === 0) {
+    return;
+  }
+
+  const { width, height } = wheelCanvas;
+  const radius = Math.min(width, height) / 2 - 30;
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  ctx.rotate(rotation);
+
+  wheelSegments.forEach((segment, index) => {
+    const start = topOffset + segment.startAngle;
+    const end = topOffset + segment.endAngle;
+    const mid = start + segment.angle / 2;
+    const isHighlight = index === highlightIndex;
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, isHighlight ? radius + 10 : radius, start, end);
+    ctx.closePath();
+    ctx.fillStyle = wheelColors[index] || palette[index % palette.length];
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(255,255,255,0.92)";
+    ctx.stroke();
+
+    ctx.save();
+    ctx.rotate(mid);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#fffef8";
+    ctx.font = `${isHighlight ? "700 29px" : "600 22px"} "Segoe UI", sans-serif`;
+    const textRadius = Math.max(92, radius - 56);
+    const availableWidth = Math.max(90, Math.min(170, segment.angle * radius * 0.72));
+    wrapText(segment.label, textRadius, 0, availableWidth, isHighlight ? 28 : 24);
+    ctx.restore();
+  });
+
+  ctx.beginPath();
+  ctx.arc(0, 0, 56, 0, Math.PI * 2);
+  ctx.fillStyle = "#fff8eb";
+  ctx.fill();
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = "#3b1d0f";
+  ctx.stroke();
+
+  ctx.fillStyle = "#3b1d0f";
+  ctx.font = '700 20px "Segoe UI", sans-serif';
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("QUAY", 0, 2);
+  ctx.restore();
+}
+
+function wrapText(text, x, y, maxWidth, lineHeight) {
+  const words = text.split(/\s+/);
+  let line = "";
+  const lines = [];
+
+  words.forEach((word) => {
+    const testLine = line ? `${line} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = testLine;
+    }
+  });
+
+  if (line) {
+    lines.push(line);
+  }
+
+  const offset = ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((item, index) => {
+    ctx.fillText(item, x, y - offset + index * lineHeight);
+  });
+}
+
+function animate(timestamp) {
+  if (!lastFrameTime) {
+    lastFrameTime = timestamp;
+  }
+
+  const delta = (timestamp - lastFrameTime) / 1000;
+  lastFrameTime = timestamp;
+  if (!spinning) {
+    activeAnimationId = null;
+    return;
+  }
+
+  const elapsed = timestamp - spinStartTime;
+  const elapsedSeconds = elapsed / 1000;
+  const durationSeconds = stopDuration / 1000;
+  const deceleration = spinInitialVelocity / durationSeconds;
+  currentVelocity = Math.max(spinInitialVelocity - (deceleration * elapsedSeconds), 0);
+  rotation += currentVelocity * delta;
+  setChargeLevel(currentVelocity / maxAngularVelocity);
+  drawWheel();
+
+  if (currentVelocity > 0) {
+    activeAnimationId = requestAnimationFrame(animate);
+    return;
+  }
+
+  spinning = false;
+  activeAnimationId = null;
+  lastFrameTime = 0;
+  setChargeLevel(0);
+  chosenIndex = getWinningIndex();
+  drawWheel(chosenIndex);
+  const label = wheelSegments[chosenIndex]?.label || "Không xác định";
+  updateResultPanel(label, "Bạn đã quay trúng ô này.", true);
+  removeButton.disabled = settings.segments.length <= 2;
+  postResultActions.classList.remove("hidden");
+  updateReadyButton();
+}
+
+function startSpin() {
+  if (!settings || settings.segments.length < 2 || spinning) {
+    return;
+  }
+
+  chosenIndex = null;
+  postResultActions.classList.add("hidden");
+  spinning = true;
+  currentVelocity = Math.max(maxAngularVelocity * 0.08, chargeLevel * maxAngularVelocity);
+  spinInitialVelocity = currentVelocity;
+  spinStartTime = performance.now();
+  const normalizedForce = currentVelocity / maxAngularVelocity;
+  stopDuration = Math.max(300, settings.deceleration_seconds * normalizedForce * 1000);
+  spinButton.textContent = "Đang quay";
+  spinButton.disabled = true;
+  updateResultPanel("Đang quay...", `Tốc độ ${Math.round(normalizedForce * maxRpm)} vòng/phút. Thời gian quay ${Math.max(stopDuration / 1000, 0.3).toFixed(1)} giây.`);
+  lastFrameTime = 0;
+  activeAnimationId = requestAnimationFrame(animate);
+}
+
+function removeWinningSegment() {
+  if (chosenIndex === null || settings.segments.length <= 2) {
+    return;
+  }
+
+  settings.segments.splice(chosenIndex, 1);
+  chosenIndex = null;
+  postResultActions.classList.add("hidden");
+  persistSettings("Đã xóa ô vừa trúng.");
+}
+
+function continueAfterResult() {
+  chosenIndex = null;
+  postResultActions.classList.add("hidden");
+  drawWheel();
+  updateIdleState("Giữ nút chơi để nạp lực cho lượt tiếp theo.");
+}
+
+function persistSettings(message) {
+  fetch("/api/settings", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(settings),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Không thể lưu cài đặt");
+      }
+      return response.json();
+    })
+    .then((data) => {
+      settings = data;
+      refreshWheelData();
+      updateReadyButton();
+      drawWheel();
+      updateIdleState(message);
+    })
+    .catch(() => {
+      updateResultPanel("Lỗi", "Không lưu được thay đổi.");
+    });
+}
+
+function tickCharge(timestamp) {
+  if (!charging) {
+    chargeAnimationId = null;
+    return;
+  }
+
+  const elapsed = timestamp - chargeStartTime;
+  const chargeDuration = (settings?.charge_seconds ?? 2.2) * 1000;
+  setChargeLevel(getOscillatingChargeLevel(elapsed, chargeDuration));
+  updateResultPanel("Đang nạp lực...", `Thanh lực đang lên xuống liên tục. Thả nút để chốt ${Math.round(chargeLevel * maxRpm)} vòng/phút.`);
+  chargeAnimationId = requestAnimationFrame(tickCharge);
+}
+
+function startCharging(event) {
+  if (!settings || settings.segments.length < 2 || spinning || charging) {
+    return;
+  }
+
+  event.preventDefault();
+  charging = true;
+  activePointerId = event.pointerId;
+  chargeStartTime = performance.now();
+  setChargeLevel(0);
+  postResultActions.classList.add("hidden");
+  updateResultPanel("Đang nạp lực...", "Giữ nút càng lâu, lực quay càng cao.");
+  spinButton.textContent = "Thả để quay";
+  spinButton.setPointerCapture(event.pointerId);
+  chargeAnimationId = requestAnimationFrame(tickCharge);
+}
+
+function releaseCharge(event) {
+  if (!charging || (event && activePointerId !== null && event.pointerId !== activePointerId)) {
+    return;
+  }
+
+  if (event) {
+    event.preventDefault();
+  }
+
+  charging = false;
+  if (chargeAnimationId) {
+    cancelAnimationFrame(chargeAnimationId);
+    chargeAnimationId = null;
+  }
+
+  if (activePointerId !== null && spinButton.hasPointerCapture(activePointerId)) {
+    spinButton.releasePointerCapture(activePointerId);
+  }
+  activePointerId = null;
+
+  if (chargeLevel <= 0) {
+    setChargeLevel(0.08);
+  }
+
+  startSpin();
+}
+
+spinButton.addEventListener("pointerdown", (event) => {
+  startCharging(event);
+});
+
+spinButton.addEventListener("pointerup", releaseCharge);
+spinButton.addEventListener("pointercancel", releaseCharge);
+spinButton.addEventListener("lostpointercapture", releaseCharge);
+spinButton.addEventListener("pointerleave", (event) => {
+  if (charging && event.buttons === 0) {
+    releaseCharge(event);
+  }
+});
+
+removeButton.addEventListener("click", removeWinningSegment);
+continueButton.addEventListener("click", continueAfterResult);
+window.addEventListener("resize", () => setChargeLevel(chargeLevel));
+
+fetchSettings();

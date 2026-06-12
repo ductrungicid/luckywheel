@@ -1,0 +1,42 @@
+{
+  "segments": [
+    {
+      "label": "Ph\u00edch n\u01b0\u1edbc",
+      "weight_percent": null
+    },
+    {
+      "label": "1.000.000 VN\u0110",
+      "weight_percent": null
+    },
+    {
+      "label": "Ch\u00fac may m\u1eafn",
+      "weight_percent": null
+    },
+    {
+      "label": "V\u1edf",
+      "weight_percent": null
+    },
+    {
+      "label": "Robot h\u00fat b\u1ee5i",
+      "weight_percent": null
+    },
+    {
+      "label": "Ch\u00fac may m\u1eafn",
+      "weight_percent": null
+    },
+    {
+      "label": "5.000.000 VN\u0110",
+      "weight_percent": null
+    },
+    {
+      "label": "C\u1eb7p s\u00e1ch",
+      "weight_percent": null
+    },
+    {
+      "label": "8.000.000 VN\u0110",
+      "weight_percent": null
+    }
+  ],
+  "deceleration_seconds": 5.0,
+  "charge_seconds": 0.5
+}

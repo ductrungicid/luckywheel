@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vòng Quay May Mắn - Cài đặt</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Tùy chỉnh</p>
+        <h1>Cài đặt vòng quay</h1>
+      </div>
+      <nav class="nav-links">
+        <a href="/play">Chơi</a>
+        <a class="active" href="/settings">Cài đặt</a>
+      </nav>
+    </header>
+
+    <main class="settings-layout">
+      <section class="settings-card">
+        <label class="field">
+          <span>Số ô trong vòng quay</span>
+          <input id="segmentCount" type="number" min="2" step="1">
+        </label>
+
+        <label class="field">
+          <span>Thời gian giảm tốc tối đa ở mức 300 vòng/phút (giây)</span>
+          <input id="decelerationSeconds" type="number" min="0.5" step="0.5">
+        </label>
+
+        <label class="field">
+          <span>Thời gian nạp lực từ 0 đến 300 vòng/phút (giây)</span>
+          <input id="chargeSeconds" type="number" min="0.2" step="0.1">
+        </label>
+
+        <section class="segments-editor">
+          <div class="segments-header">
+            <span>Nội dung và tỷ lệ từng ô</span>
+            <span id="percentSummary" class="summary-chip">Đang tính...</span>
+          </div>
+          <p class="segments-note">
+            Mỗi ô có thể đặt tỷ lệ từ 1% đến 50%. Các ô để trống tỷ lệ sẽ tự chia đều phần trăm còn lại.
+          </p>
+          <div class="segments-table-wrap">
+            <table class="segments-table">
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>Nội dung</th>
+                  <th>Tỷ lệ (%)</th>
+                </tr>
+              </thead>
+              <tbody id="segmentsTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="settings-actions">
+          <button id="saveSettingsButton" class="primary-button" type="button">Lưu cài đặt</button>
+        </div>
+        <p id="settingsMessage" class="status-text"></p>
+      </section>
+    </main>
+  </div>
+
+  <script src="/settings.js"></script>
+</body>
+</html>

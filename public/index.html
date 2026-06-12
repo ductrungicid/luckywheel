@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vòng Quay May Mắn - Chơi</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Trò chơi</p>
+        <h1>Vòng Quay May Mắn</h1>
+      </div>
+      <nav class="nav-links">
+        <a class="active" href="/play">Chơi</a>
+        <a href="/settings">Cài đặt</a>
+      </nav>
+    </header>
+
+    <main class="play-layout">
+      <section class="wheel-card">
+        <div class="wheel-stage">
+          <div class="wheel-wrap">
+            <img class="arrow-icon" src="/resource/triangle-arrow.png" alt="" aria-hidden="true">
+            <canvas id="wheelCanvas" width="640" height="640"></canvas>
+          </div>
+          <aside class="power-panel" aria-label="Lực quay">
+            <div class="power-scale">
+              <span>300</span>
+              <span>225</span>
+              <span>150</span>
+              <span>75</span>
+              <span>0</span>
+            </div>
+            <div class="power-meter">
+              <div id="powerFill" class="power-fill"></div>
+            </div>
+            <div class="power-readout">
+              <strong id="powerValue">0</strong>
+              <span>vòng/phút</span>
+            </div>
+          </aside>
+        </div>
+        <div class="controls">
+          <button id="spinButton" class="primary-button">Play</button>
+        </div>
+      </section>
+
+      <aside class="result-panel">
+        <p class="eyebrow">Kết quả</p>
+        <div id="selectedValue" class="selected-value">Sẵn sàng quay</div>
+        <p id="statusText" class="status-text">Nhấn nút quay để bắt đầu.</p>
+        <div id="postResultActions" class="post-actions hidden">
+          <button id="removeButton" class="danger-button">Xóa ô này</button>
+          <button id="continueButton" class="secondary-button">Tiếp tục</button>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
