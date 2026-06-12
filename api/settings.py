@@ -25,10 +25,16 @@ class handler(BaseHTTPRequestHandler):
         try:
             settings = validate_settings_payload(payload)
         except ValueError as error:
-            self.send_error(HTTPStatus.BAD_REQUEST, str(error))
+            self.send_error_json(HTTPStatus.BAD_REQUEST, str(error))
             return
 
-        self.send_json(save_settings(settings))
+        try:
+            saved = save_settings(settings)
+        except RuntimeError as error:
+            self.send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, str(error))
+            return
+
+        self.send_json(saved)
 
     def do_OPTIONS(self):
         self.send_response(HTTPStatus.NO_CONTENT)
@@ -38,6 +44,15 @@ class handler(BaseHTTPRequestHandler):
     def send_json(self, payload):
         body = json.dumps(payload, ensure_ascii=True).encode("utf-8")
         self.send_response(HTTPStatus.OK)
+        self.send_common_headers()
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def send_error_json(self, status_code, message):
+        body = json.dumps({"error": message}, ensure_ascii=True).encode("utf-8")
+        self.send_response(status_code)
         self.send_common_headers()
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))

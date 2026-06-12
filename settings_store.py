@@ -42,6 +42,11 @@ def redis_credentials():
     return None, None
 
 
+def has_remote_storage():
+    base_url, token = redis_credentials()
+    return bool(base_url and token)
+
+
 def redis_get_json(key: str):
     base_url, token = redis_credentials()
     if not base_url or not token:
@@ -210,11 +215,14 @@ def validate_settings_payload(payload):
 
 def save_settings(settings):
     normalized = normalize_settings(settings)
+    if has_remote_storage():
+        if not redis_set_json(SETTINGS_KEY, normalized):
+            raise RuntimeError("Không lưu được cài đặt lên Redis. Hãy kiểm tra Redis integration và các biến môi trường trên Vercel.")
+        return normalized
+
+    if os.getenv("VERCEL"):
+        raise RuntimeError("Chưa cấu hình nơi lưu dùng chung trên Vercel. Hãy gắn Redis integration cho project.")
+
     ensure_local_settings()
     SETTINGS_FILE.write_text(json.dumps(normalized, ensure_ascii=True, indent=2), encoding="utf-8")
-
-    base_url, token = redis_credentials()
-    if base_url and token:
-        redis_set_json(SETTINGS_KEY, normalized)
-
     return normalized

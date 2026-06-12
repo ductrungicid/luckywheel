@@ -217,7 +217,13 @@ function saveSettings() {
   })
     .then((response) => {
       if (!response.ok) {
-        throw new Error("Lưu cài đặt thất bại.");
+        return response.json()
+          .then((data) => {
+            throw new Error(data.error || "Lưu cài đặt thất bại.");
+          })
+          .catch(() => {
+            throw new Error("Lưu cài đặt thất bại.");
+          });
       }
       return response.json();
     })
