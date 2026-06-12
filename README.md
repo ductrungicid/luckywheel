@@ -45,3 +45,4 @@ App hỗ trợ các biến môi trường:
 
 Nếu có Redis env vars, cấu hình sẽ lưu dùng chung trên web.
 Nếu không có, app local sẽ lưu vào `data/settings.json`.
+"# luckywheel" 
