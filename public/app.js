@@ -36,6 +36,15 @@ function getRandomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+function shuffleArray(items) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
 function buildColors(count) {
   if (count <= 0) {
     return [];
@@ -84,6 +93,7 @@ function resolveWheelSegments(segments) {
     const angle = (resolvedPercent / 100) * Math.PI * 2;
     const resolved = {
       label: segment.label,
+      originalIndex: segment.originalIndex,
       weight_percent: configuredWeight,
       resolved_percent: resolvedPercent,
       startAngle: cursor / 100 * Math.PI * 2,
@@ -96,7 +106,13 @@ function resolveWheelSegments(segments) {
 }
 
 function refreshWheelData() {
-  wheelSegments = resolveWheelSegments(settings?.segments ?? []);
+  const randomizedSegments = shuffleArray(
+    (settings?.segments ?? []).map((segment, index) => ({
+      ...segment,
+      originalIndex: index,
+    })),
+  );
+  wheelSegments = resolveWheelSegments(randomizedSegments);
   wheelColors = buildColors(wheelSegments.length);
 }
 
@@ -315,7 +331,12 @@ function removeWinningSegment() {
     return;
   }
 
-  settings.segments.splice(chosenIndex, 1);
+  const sourceIndex = wheelSegments[chosenIndex]?.originalIndex;
+  if (sourceIndex === undefined) {
+    return;
+  }
+
+  settings.segments.splice(sourceIndex, 1);
   chosenIndex = null;
   postResultActions.classList.add("hidden");
   persistSettings("Đã xóa ô vừa trúng.");
