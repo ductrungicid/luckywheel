@@ -34,9 +34,10 @@
     },
     {
       "label": "8.000.000 VN\u0110",
-      "weight_percent": null
+      "weight_percent": 3.0
     }
   ],
+  "max_rpm": 500.0,
   "deceleration_seconds": 5.0,
   "charge_seconds": 0.5
 }

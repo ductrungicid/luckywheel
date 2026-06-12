@@ -9,13 +9,13 @@
 <body>
   <div class="page-shell">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">Trò chơi</p>
-        <h1>Vòng Quay May Mắn</h1>
-      </div>
-      <nav class="nav-links">
-        <a class="active" href="/play">Chơi</a>
-        <a href="/settings">Cài đặt</a>
+      <nav class="nav-links" aria-label="Điều hướng">
+        <a class="nav-icon active" href="/play" aria-label="Chơi">
+          <img src="/resource/play.png" alt="">
+        </a>
+        <a class="nav-icon" href="/settings" aria-label="Cài đặt">
+          <img src="/resource/settings.png" alt="">
+        </a>
       </nav>
     </header>
 
@@ -51,11 +51,7 @@
       <aside class="result-panel">
         <p class="eyebrow">Kết quả</p>
         <div id="selectedValue" class="selected-value">Sẵn sàng quay</div>
-        <p id="statusText" class="status-text">Nhấn nút quay để bắt đầu.</p>
-        <div id="postResultActions" class="post-actions hidden">
-          <button id="removeButton" class="danger-button">Xóa ô này</button>
-          <button id="continueButton" class="secondary-button">Tiếp tục</button>
-        </div>
+        <p id="statusText" class="status-text">Nhấn vào tâm vòng quay để bắt đầu.</p>
       </aside>
     </main>
   </div>

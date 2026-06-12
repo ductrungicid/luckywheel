@@ -4,10 +4,13 @@ const decelerationSecondsInput = document.getElementById("decelerationSeconds");
 const chargeSecondsInput = document.getElementById("chargeSeconds");
 const segmentsTableBody = document.getElementById("segmentsTableBody");
 const percentSummary = document.getElementById("percentSummary");
-const saveSettingsButton = document.getElementById("saveSettingsButton");
 const settingsMessage = document.getElementById("settingsMessage");
+const floatingSaveButton = document.getElementById("floatingSaveButton");
 
 let settings = null;
+let dirty = false;
+let isSaving = false;
+let suppressDirtyTracking = false;
 
 function setMessage(message, isError = false) {
   settingsMessage.textContent = message;
@@ -131,13 +134,31 @@ function updatePercentSummary() {
   return true;
 }
 
+function updateSaveButtonVisibility() {
+  floatingSaveButton.classList.toggle("visible", dirty);
+  floatingSaveButton.disabled = isSaving;
+}
+
+function markDirty(message = "Có thay đổi chưa lưu.") {
+  if (suppressDirtyTracking) {
+    return;
+  }
+  dirty = true;
+  setMessage(message);
+  updateSaveButtonVisibility();
+}
+
 function fillForm() {
+  suppressDirtyTracking = true;
   segmentCountInput.value = settings.segments.length;
   maxRpmInput.value = settings.max_rpm;
   decelerationSecondsInput.value = settings.deceleration_seconds;
   chargeSecondsInput.value = settings.charge_seconds;
   renderSegmentsTable(settings.segments);
   updatePercentSummary();
+  suppressDirtyTracking = false;
+  dirty = false;
+  updateSaveButtonVisibility();
 }
 
 function loadSettings() {
@@ -146,6 +167,7 @@ function loadSettings() {
     .then((data) => {
       settings = data;
       fillForm();
+      setMessage("Cài đặt đã đồng bộ.");
     })
     .catch(() => {
       setMessage("Không tải được cài đặt.", true);
@@ -160,9 +182,11 @@ function syncSegmentCount() {
   }
 
   settings.segments = normalizeSegments(getSegmentsFromTable(), count);
+  suppressDirtyTracking = true;
   renderSegmentsTable(settings.segments);
   updatePercentSummary();
-  setMessage("Bảng nội dung đã được cập nhật theo số lượng ô.");
+  suppressDirtyTracking = false;
+  markDirty("Bảng nội dung đã được cập nhật theo số lượng ô.");
 }
 
 function readForm() {
@@ -215,6 +239,10 @@ function saveSettings() {
     return;
   }
 
+  isSaving = true;
+  updateSaveButtonVisibility();
+  setMessage("Đang lưu cài đặt...");
+
   fetch("/api/settings", {
     method: "POST",
     headers: {
@@ -241,14 +269,27 @@ function saveSettings() {
     })
     .catch((error) => {
       setMessage(error.message, true);
+    })
+    .finally(() => {
+      isSaving = false;
+      updateSaveButtonVisibility();
     });
 }
 
 segmentCountInput.addEventListener("input", syncSegmentCount);
 segmentCountInput.addEventListener("change", syncSegmentCount);
+
+[maxRpmInput, decelerationSecondsInput, chargeSecondsInput].forEach((input) => {
+  input.addEventListener("input", () => {
+    markDirty();
+  });
+});
+
 segmentsTableBody.addEventListener("input", () => {
   updatePercentSummary();
+  markDirty();
 });
-saveSettingsButton.addEventListener("click", saveSettings);
+
+floatingSaveButton.addEventListener("click", saveSettings);
 
 loadSettings();

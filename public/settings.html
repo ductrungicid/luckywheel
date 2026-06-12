@@ -9,13 +9,13 @@
 <body>
   <div class="page-shell">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">Tùy chỉnh</p>
-        <h1>Cài đặt vòng quay</h1>
-      </div>
-      <nav class="nav-links">
-        <a href="/play">Chơi</a>
-        <a class="active" href="/settings">Cài đặt</a>
+      <nav class="nav-links" aria-label="Điều hướng">
+        <a class="nav-icon" href="/play" aria-label="Chơi">
+          <img src="/resource/play.png" alt="">
+        </a>
+        <a class="nav-icon active" href="/settings" aria-label="Cài đặt">
+          <img src="/resource/settings.png" alt="">
+        </a>
       </nav>
     </header>
 
@@ -63,13 +63,14 @@
           </div>
         </section>
 
-        <div class="settings-actions">
-          <button id="saveSettingsButton" class="primary-button" type="button">Lưu cài đặt</button>
-        </div>
         <p id="settingsMessage" class="status-text"></p>
       </section>
     </main>
   </div>
+
+  <button id="floatingSaveButton" class="floating-save" type="button" aria-label="Lưu cài đặt">
+    <img src="/resource/done.png" alt="">
+  </button>
 
   <script src="/settings.js"></script>
 </body>

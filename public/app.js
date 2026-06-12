@@ -3,9 +3,6 @@ const wheelTrigger = document.getElementById("wheelTrigger");
 const wheelTriggerText = document.getElementById("wheelTriggerText");
 const selectedValue = document.getElementById("selectedValue");
 const statusText = document.getElementById("statusText");
-const postResultActions = document.getElementById("postResultActions");
-const removeButton = document.getElementById("removeButton");
-const continueButton = document.getElementById("continueButton");
 const powerFill = document.getElementById("powerFill");
 const powerValue = document.getElementById("powerValue");
 
@@ -103,8 +100,8 @@ function resolveWheelSegments(segments) {
       originalIndex: segment.originalIndex,
       weight_percent: configuredWeight,
       resolved_percent: resolvedPercent,
-      startAngle: cursor / 100 * Math.PI * 2,
-      endAngle: (cursor + resolvedPercent) / 100 * Math.PI * 2,
+      startAngle: (cursor / 100) * Math.PI * 2,
+      endAngle: ((cursor + resolvedPercent) / 100) * Math.PI * 2,
       angle,
     };
     cursor += resolvedPercent;
@@ -184,7 +181,7 @@ function updateResultPanel(title, message, shouldPop = false) {
 }
 
 function normalizeAngle(angle) {
-  return ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  return ((angle % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
 }
 
 function getWinningIndex() {
@@ -210,7 +207,7 @@ function drawWheel(highlightIndex = null) {
   wheelSegments.forEach((segment, index) => {
     const start = topOffset + segment.startAngle;
     const end = topOffset + segment.endAngle;
-    const mid = start + segment.angle / 2;
+    const mid = start + (segment.angle / 2);
     const isHighlight = index === highlightIndex;
 
     ctx.beginPath();
@@ -258,7 +255,7 @@ function wrapText(text, x, y, maxWidth, lineHeight) {
 
   const offset = ((lines.length - 1) * lineHeight) / 2;
   lines.forEach((item, index) => {
-    ctx.fillText(item, x, y - offset + index * lineHeight);
+    ctx.fillText(item, x, y - offset + (index * lineHeight));
   });
 }
 
@@ -296,8 +293,6 @@ function animate(timestamp) {
   drawWheel(chosenIndex);
   const label = wheelSegments[chosenIndex]?.label || "Không xác định";
   updateResultPanel(label, "Bạn đã quay trúng ô này.", true);
-  removeButton.disabled = settings.segments.length <= 2;
-  postResultActions.classList.remove("hidden");
   updateReadyButton();
 }
 
@@ -307,7 +302,6 @@ function startSpin() {
   }
 
   chosenIndex = null;
-  postResultActions.classList.add("hidden");
   spinning = true;
   const maxAngularVelocity = getMaxAngularVelocity();
   currentVelocity = Math.max(maxAngularVelocity * 0.08, chargeLevel * maxAngularVelocity);
@@ -317,58 +311,12 @@ function startSpin() {
   stopDuration = Math.max(300, settings.deceleration_seconds * normalizedForce * 1000);
   wheelTriggerText.textContent = "Đang";
   wheelTrigger.disabled = true;
-  updateResultPanel("Đang quay...", `Tốc độ ${Math.round(normalizedForce * getMaxRpm())} vòng/phút. Thời gian quay ${Math.max(stopDuration / 1000, 0.3).toFixed(1)} giây.`);
+  updateResultPanel(
+    "Đang quay...",
+    `Tốc độ ${Math.round(normalizedForce * getMaxRpm())} vòng/phút. Thời gian quay ${Math.max(stopDuration / 1000, 0.3).toFixed(1)} giây.`,
+  );
   lastFrameTime = 0;
   activeAnimationId = requestAnimationFrame(animate);
-}
-
-function removeWinningSegment() {
-  if (chosenIndex === null || settings.segments.length <= 2) {
-    return;
-  }
-
-  const sourceIndex = wheelSegments[chosenIndex]?.originalIndex;
-  if (sourceIndex === undefined) {
-    return;
-  }
-
-  settings.segments.splice(sourceIndex, 1);
-  chosenIndex = null;
-  postResultActions.classList.add("hidden");
-  persistSettings("Đã xóa ô vừa trúng.");
-}
-
-function continueAfterResult() {
-  chosenIndex = null;
-  postResultActions.classList.add("hidden");
-  drawWheel();
-  updateIdleState("Giữ nút ở tâm vòng quay để nạp lực cho lượt tiếp theo.");
-}
-
-function persistSettings(message) {
-  fetch("/api/settings", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(settings),
-  })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error("Không thể lưu cài đặt");
-      }
-      return response.json();
-    })
-    .then((data) => {
-      settings = data;
-      refreshWheelData();
-      updateReadyButton();
-      drawWheel();
-      updateIdleState(message);
-    })
-    .catch(() => {
-      updateResultPanel("Lỗi", "Không lưu được thay đổi.");
-    });
 }
 
 function tickCharge(timestamp) {
@@ -380,7 +328,10 @@ function tickCharge(timestamp) {
   const elapsed = timestamp - chargeStartTime;
   const chargeDuration = (settings?.charge_seconds ?? 2.2) * 1000;
   setChargeLevel(getOscillatingChargeLevel(elapsed, chargeDuration));
-  updateResultPanel("Đang nạp lực...", `Thanh lực đang lên xuống liên tục. Thả nút để chốt ${Math.round(chargeLevel * getMaxRpm())} vòng/phút.`);
+  updateResultPanel(
+    "Đang nạp lực...",
+    `Thanh lực đang lên xuống liên tục. Thả nút để chốt ${Math.round(chargeLevel * getMaxRpm())} vòng/phút.`,
+  );
   chargeAnimationId = requestAnimationFrame(tickCharge);
 }
 
@@ -394,7 +345,6 @@ function startCharging(event) {
   activePointerId = event.pointerId;
   chargeStartTime = performance.now();
   setChargeLevel(0);
-  postResultActions.classList.add("hidden");
   updateResultPanel("Đang nạp lực...", "Giữ nút ở tâm càng lâu, lực quay càng cao.");
   wheelTriggerText.textContent = "Thả";
   wheelTrigger.setPointerCapture(event.pointerId);
@@ -441,8 +391,6 @@ wheelTrigger.addEventListener("pointerleave", (event) => {
   }
 });
 
-removeButton.addEventListener("click", removeWinningSegment);
-continueButton.addEventListener("click", continueAfterResult);
 window.addEventListener("resize", () => setChargeLevel(chargeLevel));
 
 fetchSettings();
